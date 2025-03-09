@@ -25,7 +25,7 @@ apt-get update
 apt-get -y install clickhouse-server clickhouse-client
 ```
 
-Create ReplacingMergeTree table to avoid duplicates:
+Create ReplacingMergeTree table to avoid duplicates (when exporting manually):
 ```
 CREATE TABLE default.kaspa
 (
@@ -38,6 +38,8 @@ PARTITION BY dt
 ORDER BY address
 SETTINGS index_granularity = 8192
 ```
+
+Or change `ReplacingMergeTree` to `MergeTree` if you don't need to optimize your table.
 
 Export csv file to the default.kaspa Clickhouse table:
 ```
