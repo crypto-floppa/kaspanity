@@ -9,7 +9,7 @@ cd kaspanity
 go install
 ```
 
-kaspanity uses two options, you can change default values by flags: `/root/go/bin/kaspanity -t 5 -p /root/kaspa.csv`, where:
+kaspanity uses two options, you can change default values by flags: `/root/go/bin/kaspanity -w 10 -a 10000`, where:
 ```
 -w (int) -- number of wallets   (default is 1)
 -a (int) -- number of addresses (default is 2)
