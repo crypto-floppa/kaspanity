@@ -4,10 +4,9 @@ import (
     "fmt"
     "log"
     "flag"
-    "os"
-    "path/filepath"
 
     "math/rand"
+    "encoding/json"
     "time"
 
     "sync"
@@ -28,65 +27,66 @@ func generatePassword() string {
 return string(result)
 }
 
-func generateWallet( wg *sync.WaitGroup, dbpath string ) {
+func generateWallet( wg *sync.WaitGroup, awallet int ) {
     defer wg.Done()
-    
-    for {
+
+    // for {
         password := generatePassword()
-        
+
         // create bip-39 mnemonic
         mnemonic, err := libkaspawallet.CreateMnemonic()
         if err != nil {
             log.Fatalf("mnemonic generation error: %v", err)
         }
-        
+
         // generate key pair
         keysFile, err := keys.NewFileFromMnemonic(&dagconfig.MainnetParams, mnemonic, password)
         if err != nil {
             log.Fatalf("keysFile error: %v", err)
         }
-        
-        // extract first address
-        path := fmt.Sprintf("m/%d/%d", libkaspawallet.ExternalKeychain, 0)
-        address, err := libkaspawallet.Address(&dagconfig.MainnetParams, keysFile.ExtendedPublicKeys, 1, path, false)
-        if err != nil {
-            log.Fatalf("address generation error: %v", err)
-        }
-        
-        // print the result in csv format
-        // fmt.Printf("%v,%v\n", address,mnemonic)
 
-        // write to file instead
-        csvLine := fmt.Sprintf("%v,%v\n", address, mnemonic)
-        f, _ := os.OpenFile(dbpath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-        f.Write([]byte(csvLine))
-        f.Close()
-    }
+        // extract multiple addresses
+        addresses := make([]string, 0, awallet)
+        for i := 0; i < awallet; i++ {
+            path := fmt.Sprintf("m/%d/%d", libkaspawallet.ExternalKeychain, i)
+            address, err := libkaspawallet.Address(&dagconfig.MainnetParams, keysFile.ExtendedPublicKeys, 1, path, false)
+            if err != nil {
+                log.Fatalf("address generation error for index %d: %v", i, err)
+            }
+        addresses = append(addresses, address.String())
+        }
+
+        output := map[string]interface{}{
+            "mnemonic": mnemonic,
+            "addresses": addresses,
+        }
+
+        jsonOutput, err := json.MarshalIndent(output, "", "  ")
+        if err != nil {
+            log.Fatalf("failed to marshal to JSON: %v", err)
+        }
+
+        fmt.Println(string(jsonOutput))
+
+    // }
 }
 
-func main() { 
-    numPtr := flag.Int("t", 1, "-t must be an integer")
-
-    homeDir, err := os.UserHomeDir()
-    if err != nil {
-        fmt.Fprintf(os.Stderr, "error while getting home path: %v\n", err)
-        os.Exit(1)
-    }
-    defaultPath := filepath.Join(homeDir, "kaspa.csv")
-    filePath := flag.String("p", defaultPath, "path to kaspa.csv file")
+func main() {
+    numW := flag.Int("w", 1, "-w must be an integer")
+    numA := flag.Int("a", 2, "-a must be an integer")
 
     flag.Parse()
-    
-    num := *numPtr
-    dbpath := *filePath
-    
+
+    nwallet := *numW
+    awallet := *numA
+
     var wg sync.WaitGroup
-    
-    wg.Add(num)
-    
-    for i := 0; i < num; i++ {
-        go generateWallet( &wg, dbpath )
+
+    wg.Add(nwallet)
+
+    for i := 0; i < nwallet; i++ {
+        go generateWallet( &wg, awallet )
     }
-    
+
     wg.Wait()
 }
